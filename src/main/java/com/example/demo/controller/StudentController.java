@@ -8,6 +8,7 @@ import com.example.demo.model.Role;
 import com.example.demo.model.Student;
 import com.example.demo.service.RoleService;
 import com.example.demo.service.StudentServiceImpl;
+import com.example.demo.service.TokenService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +39,7 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 public class StudentController {
     private final StudentServiceImpl studentService;
     private final RoleService roleService;
+    private final TokenService tokenService;
 
     @GetMapping("/student/students")
     public ResponseEntity<List<Student>> getStudents() {
@@ -64,41 +66,7 @@ public class StudentController {
 
     @GetMapping("/token/refresh")
     public void refreshToken(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        String authorizationHeader = request.getHeader(AUTHORIZATION);
-        if (authorizationHeader != null && authorizationHeader.startsWith("Demo ")) {
-            try {
-                String refreshToken = authorizationHeader.substring("Demo ".length());
-                Algorithm algorithm = Algorithm.HMAC256("secret".getBytes());
-                JWTVerifier verifier = JWT.require(algorithm).build();
-                DecodedJWT decodedJWT = verifier.verify(refreshToken);
-                String username = decodedJWT.getSubject();
-                Student student = studentService.getStudent(username);
-
-                String accessToken = JWT.create()
-                        .withSubject(student.getEmail())
-                        .withExpiresAt(new Date(System.currentTimeMillis() + 10 * 60 * 1000))
-                        .withIssuer(request.getRequestURL().toString())
-                        .withClaim("roles", student.getRoles().stream().map(Role::getName).collect(Collectors.toList()))
-                        .sign(algorithm);
-
-                Map<String, String> tokens = new HashMap<>();
-                tokens.put("access_token", accessToken);
-                tokens.put("refresh_token", refreshToken);
-                response.setContentType(APPLICATION_JSON_VALUE);
-
-                new ObjectMapper().writeValue(response.getOutputStream(), tokens);
-            } catch (Exception e) {
-                log.error("Error logging in: {}", e.getMessage());
-                response.setHeader("error", e.getMessage());
-                response.setStatus(FORBIDDEN.value());
-                Map<String, String> errors = new HashMap<>();
-                errors.put("error_message", e.getMessage());
-                response.setContentType(APPLICATION_JSON_VALUE);
-                new ObjectMapper().writeValue(response.getOutputStream(), errors);
-            }
-        } else {
-            throw new RuntimeException("Refresh token is missing!");
-        }
+        tokenService.refreshToken(request, response);
     }
 
     @DeleteMapping(path = "/student/{studentId}")
