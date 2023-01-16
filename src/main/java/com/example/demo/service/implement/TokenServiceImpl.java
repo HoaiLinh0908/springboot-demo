@@ -1,30 +1,39 @@
-package com.example.demo.service;
+package com.example.demo.service.implement;
 
 import com.auth0.jwt.interfaces.DecodedJWT;
+import com.example.demo.model.ConfirmationToken;
 import com.example.demo.model.Role;
 import com.example.demo.model.Student;
+import com.example.demo.repository.ConfirmationTokenRepository;
+import com.example.demo.service.TokenService;
 import com.example.demo.utils.Utils;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
-import static org.springframework.http.HttpStatus.FORBIDDEN;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class TokenServiceImpl implements TokenService {
     private final StudentServiceImpl studentService;
+    private final ConfirmationTokenRepository confirmationTokenRepository;
+
+    TokenServiceImpl(@Lazy StudentServiceImpl studentService, ConfirmationTokenRepository confirmationTokenRepository) {
+        this.studentService = studentService;
+        this.confirmationTokenRepository = confirmationTokenRepository;
+    }
 
     @Override
     public void refreshToken(HttpServletRequest request, HttpServletResponse response) throws IOException {
@@ -53,5 +62,21 @@ public class TokenServiceImpl implements TokenService {
         } else {
             throw new RuntimeException("Refresh token is missing!");
         }
+    }
+
+    @Override
+    public void saveConfirmationToken(ConfirmationToken token) {
+        confirmationTokenRepository.save(token);
+    }
+
+    @Override
+    public Optional<ConfirmationToken> getConfirmationToken(String token) {
+        return confirmationTokenRepository.findByToken(token);
+    }
+
+    @Override
+    public int setConfirmedAt(String token) {
+        return confirmationTokenRepository.updateConfirmedAt(
+                token, LocalDateTime.now());
     }
 }
