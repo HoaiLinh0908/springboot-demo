@@ -2,9 +2,10 @@ package com.example.demo.controller;
 
 import com.example.demo.model.Role;
 import com.example.demo.model.Student;
+import com.example.demo.service.RegistrationService;
 import com.example.demo.service.RoleService;
-import com.example.demo.service.StudentServiceImpl;
 import com.example.demo.service.TokenService;
+import com.example.demo.service.implement.StudentServiceImpl;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +25,7 @@ import java.util.List;
 @RequestMapping(path = "/api")
 public class StudentController {
     private final StudentServiceImpl studentService;
+    private final RegistrationService registrationService;
     private final RoleService roleService;
     private final TokenService tokenService;
 
@@ -33,9 +35,14 @@ public class StudentController {
     }
 
     @PostMapping("/student/register")
-    public ResponseEntity<Student> registerNewStudent(@RequestBody Student student) {
+    public ResponseEntity<String> registerNewStudent(@RequestBody Student student) {
         URI uri = URI.create(ServletUriComponentsBuilder.fromCurrentContextPath().path("/api/student/register").toUriString());
-        return ResponseEntity.created(uri).body(studentService.addNewStudent(student));
+        return ResponseEntity.created(uri).body(registrationService.register(student));
+    }
+
+    @GetMapping("/student/register/confirm")
+    public String confirmRegistration(@RequestParam("token") String token) {
+        return registrationService.confirmToken(token);
     }
 
     @PostMapping("/student/role/save")

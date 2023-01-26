@@ -26,6 +26,7 @@ public class StudentConfig {
                     "hello123",
                     LocalDate.of(1999, Month.JULY, 30),
                     new ArrayList<>());
+            linhDo.setEnabled(true);
 
             Student huyenPham = new Student(2L,
                     "HuyenPham",

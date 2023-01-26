@@ -1,13 +1,14 @@
-package com.example.demo.service;
+package com.example.demo.service.implement;
 
+import com.example.demo.model.ConfirmationToken;
 import com.example.demo.model.Role;
 import com.example.demo.model.Student;
 import com.example.demo.repository.RoleRepository;
 import com.example.demo.repository.StudentRepository;
+import com.example.demo.service.StudentService;
+import com.example.demo.service.TokenService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -15,10 +16,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.Collection;
+import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +31,7 @@ public class StudentServiceImpl implements StudentService, UserDetailsService {
     private final StudentRepository studentRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final TokenService tokenService;
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
@@ -39,10 +42,7 @@ public class StudentServiceImpl implements StudentService, UserDetailsService {
         } else {
             log.info("Student found in the database: {}", username);
         }
-        Student student = optionalStudent.get();
-        Collection<SimpleGrantedAuthority> authorities = new ArrayList<>();
-        student.getRoles().forEach(r -> authorities.add(new SimpleGrantedAuthority(r.getName())));
-        return new User(student.getEmail(), student.getPassword(), authorities);
+        return optionalStudent.get();
     }
 
     public List<Student> getStudents() {
@@ -97,5 +97,36 @@ public class StudentServiceImpl implements StudentService, UserDetailsService {
             throw new IllegalStateException(String.format("Role '%s' does not exist!", email));
         }
         optionalStudent.get().getRoles().add(optionalRole.get());
+    }
+
+    @Override
+    public String registerStudent(Student student) {
+        Optional<Student> optionalStudent = studentRepository.findStudentByEmail(student.getEmail());
+        if (optionalStudent.isPresent()) {
+            // TODO check of attributes are the same and
+            // TODO if email not confirmed send confirmation email.
+            throw new IllegalStateException(String.format("The email '%s' is taken!", student.getEmail()));
+        }
+        student.setPassword(passwordEncoder.encode(student.getPassword()));
+        if (student.getRoles().isEmpty()) {
+            student.setRoles(Collections.singletonList(roleRepository.findByName("Bad Student").get()));
+        }
+        studentRepository.save(student);
+
+        String token = UUID.randomUUID().toString();
+
+        ConfirmationToken confirmationToken = new ConfirmationToken(
+                token,
+                LocalDateTime.now(),
+                LocalDateTime.now().plusMinutes(15),
+                student
+        );
+
+        tokenService.saveConfirmationToken(confirmationToken);
+        return token;
+    }
+
+    public int enableStudent(String email) {
+        return studentRepository.enableStudent(email);
     }
 }

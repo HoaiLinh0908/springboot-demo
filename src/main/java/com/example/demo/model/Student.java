@@ -1,8 +1,12 @@
 package com.example.demo.model;
 
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import javax.persistence.*;
 import java.time.LocalDate;
@@ -14,8 +18,8 @@ import java.util.Collection;
 @Getter
 @Setter
 @Entity
-@Table
-public class Student {
+@EqualsAndHashCode
+public class Student implements UserDetails {
     @Id
     @SequenceGenerator(
             name = "student_sequence",
@@ -33,6 +37,8 @@ public class Student {
     private LocalDate dob;
     @ManyToMany(fetch = FetchType.EAGER)
     private Collection<Role> roles = new ArrayList<>();
+    private Boolean locked = false;
+    private Boolean enabled = false;
     @Transient
     private Integer age;
 
@@ -47,5 +53,42 @@ public class Student {
 
     public Integer getAge() {
         return Period.between(this.dob, LocalDate.now()).getYears();
+    }
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        Collection<SimpleGrantedAuthority> authorities = new ArrayList<>();
+        roles.forEach(role -> authorities.add(new SimpleGrantedAuthority(role.getName())));
+        return authorities;
+    }
+
+    @Override
+    public String getUsername() {
+        return email;
+    }
+
+    @Override
+    public String getPassword() {
+        return password;
+    }
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return !locked;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return enabled;
     }
 }
